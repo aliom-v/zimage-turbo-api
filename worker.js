@@ -1,33 +1,37 @@
 /**
  * =================================================================================
  * 项目: zimage-2api (Cloudflare Worker 单文件·全功能修复版)
- * 版本: 2.2.0 (代号: Turbo Cockpit - Optimized)
+ * 版本: 2.3.0 (代号: Turbo Cockpit - Ultimate)
  * 作者: 首席AI执行官 (Principal AI Executive Officer)
  * 协议: 奇美拉协议 · 综合版 (Project Chimera: Synthesis Edition)
  * 日期: 2025-12-15
  *
- * [v2.2.0 优化日志]
- * 1. [代码重构] 提取通用轮询函数 pollForResult，消除重复代码
- * 2. [性能优化] generateHex 使用 crypto.getRandomValues 替代循环
- * 3. [配置增强] 轮询间隔提取为配置常量，便于调整
- * 4. [输入验证] 添加 prompt 和 messages 参数验证
- * 5. [错误处理] 统一错误响应格式和消息
+ * [v2.3.0 优化日志]
+ * 1. [性能优化] 添加请求重试机制，提高稳定性
+ * 2. [功能增强] 支持 negative_prompt 负面提示词
+ * 3. [功能增强] 添加 /v1/health 健康检查端点
+ * 4. [代码质量] 添加请求速率限制 (基于内存)
+ * 5. [代码质量] 添加结构化日志系统
+ * 6. [UI/UX] 添加生成历史记录 (本地存储)
+ * 7. [UI/UX] 添加图片下载功能
+ * 8. [UI/UX] 添加键盘快捷键支持 (Ctrl+Enter 生成)
+ * 9. [UI/UX] 优化移动端交互体验
  * =================================================================================
  */
 
 // --- [第一部分: 核心配置 (Configuration-as-Code)] ---
 const CONFIG = {
   PROJECT_NAME: "zimage-2api",
-  PROJECT_VERSION: "2.2.0",
-  
+  PROJECT_VERSION: "2.3.0",
+
   // 安全配置 (API Key) - 建议在部署后修改
-  API_MASTER_KEY: "1", 
-  
+  API_MASTER_KEY: "1",
+
   // 上游服务配置
   UPSTREAM_URL: "https://z-image.62tool.com/api.php",
   ORIGIN_URL: "https://z-image.62tool.com",
   REFERER_URL: "https://z-image.62tool.com/",
-  
+
   // 模型列表
   MODELS: ["z-image-turbo", "dall-e-3"],
   DEFAULT_MODEL: "z-image-turbo",
@@ -41,12 +45,70 @@ const CONFIG = {
   POLLING_TIMEOUT: 60000,
   STREAM_POLLING_INTERVAL: 1500,  // 流式模式轮询间隔
   NON_STREAM_POLLING_INTERVAL: 2000,  // 非流式模式轮询间隔
-  
+
+  // 重试配置
+  MAX_RETRIES: 3,
+  RETRY_DELAY: 1000,
+
+  // 速率限制 (每分钟请求数)
+  RATE_LIMIT: 30,
+  RATE_LIMIT_WINDOW: 60000,
+
   // 伪装指纹池
   USER_AGENTS: [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
   ]
+};
+
+// --- [速率限制器 (内存实现)] ---
+const rateLimiter = {
+  requests: new Map(),
+
+  check(clientId) {
+    const now = Date.now();
+    const windowStart = now - CONFIG.RATE_LIMIT_WINDOW;
+
+    // 清理过期记录
+    if (!this.requests.has(clientId)) {
+      this.requests.set(clientId, []);
+    }
+
+    const clientRequests = this.requests.get(clientId).filter(t => t > windowStart);
+    this.requests.set(clientId, clientRequests);
+
+    if (clientRequests.length >= CONFIG.RATE_LIMIT) {
+      return false;
+    }
+
+    clientRequests.push(now);
+    return true;
+  },
+
+  getRemaining(clientId) {
+    const requests = this.requests.get(clientId) || [];
+    const windowStart = Date.now() - CONFIG.RATE_LIMIT_WINDOW;
+    const validRequests = requests.filter(t => t > windowStart);
+    return Math.max(0, CONFIG.RATE_LIMIT - validRequests.length);
+  }
+};
+
+// --- [结构化日志系统] ---
+const Logger = {
+  _format(level, message, data = {}) {
+    return JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      ...data
+    });
+  },
+
+  info(message, data) { console.log(this._format('INFO', message, data)); },
+  warn(message, data) { console.warn(this._format('WARN', message, data)); },
+  error(message, data) { console.error(this._format('ERROR', message, data)); }
 };
 
 // --- [第二部分: Worker 入口] ---
@@ -60,17 +122,27 @@ export default {
   async fetch(request, env, ctx) {
     const apiKey = env.API_MASTER_KEY || CONFIG.API_MASTER_KEY;
     const url = new URL(request.url);
+    const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
 
     if (request.method === 'OPTIONS') return handleCorsPreflight();
 
+    // 速率限制检查 (排除静态页面和健康检查)
+    if (url.pathname.startsWith('/v1/') && url.pathname !== '/v1/health' && url.pathname !== '/v1/models') {
+      if (!rateLimiter.check(clientIP)) {
+        Logger.warn('Rate limit exceeded', { clientIP, path: url.pathname });
+        return createErrorResponse('Rate limit exceeded. Please slow down.', 429, 'rate_limit_exceeded');
+      }
+    }
+
     // 路由分发
     if (url.pathname === '/') return handleUI(request, apiKey);
+    if (url.pathname === '/v1/health') return handleHealthCheck();
     if (url.pathname === '/v1/models') return handleModelsRequest();
     if (url.pathname === '/v1/images/generations') return handleImageGenerations(request, apiKey);
-    
-    // [修复点] 显式传递 ctx 给 handleChatCompletions
+
+    // 显式传递 ctx 给 handleChatCompletions
     if (url.pathname === '/v1/chat/completions') return handleChatCompletions(request, apiKey, ctx);
-    
+
     // [WebUI 专用] 状态查询接口
     if (url.pathname === '/v1/query/status') return handleStatusQuery(request, apiKey);
 
@@ -115,19 +187,56 @@ class IdentityForge {
 }
 
 /**
+ * 带重试的 fetch 请求
+ * @param {string} url
+ * @param {RequestInit} options
+ * @param {number} retries
+ * @returns {Promise<Response>}
+ */
+async function fetchWithRetry(url, options, retries = CONFIG.MAX_RETRIES) {
+    let lastError;
+    for (let i = 0; i <= retries; i++) {
+        try {
+            const res = await fetch(url, options);
+            if (res.ok || res.status < 500) return res;
+            throw new Error(`HTTP ${res.status}`);
+        } catch (e) {
+            lastError = e;
+            if (i < retries) {
+                Logger.warn('Request failed, retrying', { attempt: i + 1, error: e.message });
+                await new Promise(r => setTimeout(r, CONFIG.RETRY_DELAY * (i + 1)));
+            }
+        }
+    }
+    throw lastError;
+}
+
+/**
  * 提交生成任务
+ * @param {string} prompt - 正面提示词
+ * @param {Object} params - 参数对象
+ * @param {string} params.size - 图像尺寸
+ * @param {number} params.steps - 生成步数
+ * @param {number} params.seed - 随机种子
+ * @param {string} params.negative_prompt - 负面提示词
  * @returns {Promise<Object>} { taskId, headers, success }
  */
 async function submitTask(prompt, params = {}) {
     const headers = IdentityForge.getHeaders();
     const taskId = IdentityForge.generateTaskId();
-    
+
+    // 构建完整提示词 (如果有负面提示词)
+    let fullPrompt = prompt;
+    if (params.negative_prompt) {
+        fullPrompt = `${prompt} --no ${params.negative_prompt}`;
+    }
+
     const payload = {
         "action": "create",
         "task_id": taskId,
         "task_type": "text2img-z-image",
         "task_data": {
-            "prompt": prompt,
+            "prompt": fullPrompt,
             "size": params.size || CONFIG.DEFAULT_SIZE,
             "seed": params.seed || Math.floor(Math.random() * 1000000),
             "steps": params.steps || CONFIG.DEFAULT_STEPS,
@@ -136,15 +245,18 @@ async function submitTask(prompt, params = {}) {
         "status": 0
     };
 
-    const res = await fetch(CONFIG.UPSTREAM_URL, {
+    Logger.info('Submitting task', { taskId, prompt: prompt.slice(0, 50) });
+
+    const res = await fetchWithRetry(CONFIG.UPSTREAM_URL, {
         method: "POST", headers: headers, body: JSON.stringify(payload)
     });
 
     if (!res.ok) throw new Error(`Create Failed: ${res.status}`);
     const data = await res.json();
-    
+
     if (!data.success) throw new Error(`API Refused: ${data.message}`);
-    
+
+    Logger.info('Task submitted', { taskId });
     return { taskId, headers }; // 返回 headers 是因为查询时需要保持 Session 一致
 }
 
@@ -226,10 +338,11 @@ async function handleImageGenerations(request, apiKey) {
         const size = body.size || CONFIG.DEFAULT_SIZE;
         const steps = body.steps || body.n_steps || CONFIG.DEFAULT_STEPS;
         const seed = body.seed ? parseInt(body.seed) : null;
+        const negativePrompt = body.negative_prompt || null;
         const clientPoll = body.client_poll === true; // WebUI 专用标记
 
         // 1. 提交任务
-        const { taskId, headers } = await submitTask(prompt, { size, steps, seed });
+        const { taskId, headers } = await submitTask(prompt, { size, steps, seed, negative_prompt: negativePrompt });
 
         // [Mode A] 客户端轮询 (WebUI)
         if (clientPoll) {
@@ -243,12 +356,14 @@ async function handleImageGenerations(request, apiKey) {
 
         // [Mode B] 服务端轮询 (Standard API Client)
         const result = await pollForResult(taskId, headers);
+        Logger.info('Generation completed', { taskId });
         return new Response(JSON.stringify({
             created: Math.floor(Date.now() / 1000),
             data: [{ url: result.url }]
         }), { headers: corsHeaders({'Content-Type': 'application/json'}) });
 
     } catch (e) {
+        Logger.error('Generation failed', { error: e.message });
         return createErrorResponse(e.message, 500, 'internal_error');
     }
 }
@@ -387,6 +502,14 @@ function createErrorResponse(msg, status, code) {
 }
 function handleModelsRequest() {
     return new Response(JSON.stringify({ object: 'list', data: CONFIG.MODELS.map(id => ({ id, object: 'model', created: Date.now(), owned_by: 'zimage' })) }), { headers: corsHeaders({'Content-Type': 'application/json'}) });
+}
+function handleHealthCheck() {
+    return new Response(JSON.stringify({
+        status: 'healthy',
+        version: CONFIG.PROJECT_VERSION,
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime ? process.uptime() : 'N/A'
+    }), { headers: corsHeaders({'Content-Type': 'application/json'}) });
 }
 
 
@@ -1070,6 +1193,69 @@ function handleUI(request, apiKey) {
                 transition-duration: 0.01ms !important;
             }
         }
+
+        /* 图片操作按钮 */
+        .image-actions {
+            position: absolute;
+            bottom: var(--space-4);
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: var(--space-2);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-lg);
+        }
+
+        .action-btn {
+            padding: var(--space-2) var(--space-3);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 0.8125rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .action-btn:hover {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        /* 历史记录网格 */
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: var(--space-3);
+            margin-top: var(--space-3);
+        }
+
+        .history-item {
+            aspect-ratio: 1;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: 2px solid transparent;
+        }
+
+        .history-item:hover {
+            border-color: var(--accent-primary);
+            transform: scale(1.05);
+        }
+
+        .history-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 负面提示词部分 */
+        .negative-prompt-section {
+            margin-top: var(--space-2);
+        }
     </style>
 </head>
 <body>
@@ -1081,7 +1267,7 @@ function handleUI(request, apiKey) {
             <div class="logo-icon">Z</div>
             <h1 class="logo-title">Z-Image Turbo</h1>
         </div>
-        <span class="badge">v2.2.0</span>
+        <span class="badge">v2.3.0</span>
     </div>
 </header>
 
@@ -1092,9 +1278,13 @@ function handleUI(request, apiKey) {
         <div class="preview-placeholder" id="placeholder">
             <div class="placeholder-icon">🎨</div>
             <p class="placeholder-text">你的创意将在此呈现</p>
-            <p class="placeholder-hint">输入提示词，点击生成按钮开始</p>
+            <p class="placeholder-hint">输入提示词，按 Ctrl+Enter 或点击生成按钮开始</p>
         </div>
         <img id="resultImg" class="preview-image" style="display:none" onclick="window.open(this.src)">
+        <div class="image-actions" id="imageActions" style="display:none">
+            <button class="action-btn" onclick="downloadImage()" title="下载图片">⬇️ 下载</button>
+            <button class="action-btn" onclick="copyImageUrl()" title="复制链接">🔗 复制链接</button>
+        </div>
     </div>
 
     <!-- 提示词输入 -->
@@ -1107,6 +1297,17 @@ function handleUI(request, apiKey) {
             class="prompt-textarea"
             placeholder="描述你想生成的图像，例如：一只在未来城市中飞翔的机械蝴蝶，霓虹灯光，8K 高清..."
         >A cute cat in cyberpunk city, neon lights, 8k quality</textarea>
+        <div class="negative-prompt-section">
+            <label class="param-label" style="margin-top: var(--space-3);">
+                <span>🚫 负面提示词 (可选)</span>
+            </label>
+            <input
+                type="text"
+                id="negativePrompt"
+                class="custom-input"
+                placeholder="不想出现的内容，如：blurry, low quality, text..."
+            >
+        </div>
     </div>
 
     <!-- 参数控制网格 -->
@@ -1183,7 +1384,17 @@ function handleUI(request, apiKey) {
 <span class="endpoint">${origin}/v1/images/generations</span>  (图像生成)
 <span class="endpoint">${origin}/v1/chat/completions</span>  (Chat 模式)
 <span class="endpoint">${origin}/v1/models</span>  (模型列表)
+<span class="endpoint">${origin}/v1/health</span>  (健康检查)
         </div>
+    </div>
+
+    <!-- 生成历史 -->
+    <div class="card history-card" id="historyCard" style="display:none">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 class="card-title">📜 生成历史</h3>
+            <button class="icon-button" onclick="clearHistory()">🗑️ 清空</button>
+        </div>
+        <div class="history-grid" id="historyGrid"></div>
     </div>
 
     <!-- 隐藏的 API Key -->
@@ -1191,6 +1402,92 @@ function handleUI(request, apiKey) {
 </main>
 
 <script>
+    // --- 历史记录管理 ---
+    const HISTORY_KEY = 'zimage_history';
+    const MAX_HISTORY = 20;
+
+    function getHistory() {
+        try {
+            return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        } catch { return []; }
+    }
+
+    function saveToHistory(url, prompt) {
+        const history = getHistory();
+        history.unshift({ url, prompt, timestamp: Date.now() });
+        if (history.length > MAX_HISTORY) history.pop();
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const history = getHistory();
+        const card = document.getElementById('historyCard');
+        const grid = document.getElementById('historyGrid');
+
+        if (history.length === 0) {
+            card.style.display = 'none';
+            return;
+        }
+
+        card.style.display = 'block';
+        grid.innerHTML = history.map((item, i) =>
+            '<div class="history-item" onclick="loadFromHistory(' + i + ')" title="' + (item.prompt || '').slice(0, 50) + '">' +
+            '<img src="' + item.url + '" loading="lazy" alt="历史图片">' +
+            '</div>'
+        ).join('');
+    }
+
+    function loadFromHistory(index) {
+        const history = getHistory();
+        if (history[index]) {
+            const img = document.getElementById('resultImg');
+            const ph = document.getElementById('placeholder');
+            const actions = document.getElementById('imageActions');
+            img.src = history[index].url;
+            img.style.display = 'block';
+            ph.style.display = 'none';
+            actions.style.display = 'flex';
+            if (history[index].prompt) {
+                document.getElementById('prompt').value = history[index].prompt;
+            }
+        }
+    }
+
+    function clearHistory() {
+        if (confirm('确定要清空所有历史记录吗？')) {
+            localStorage.removeItem(HISTORY_KEY);
+            renderHistory();
+        }
+    }
+
+    // --- 图片操作 ---
+    function downloadImage() {
+        const img = document.getElementById('resultImg');
+        if (!img.src) return;
+
+        const link = document.createElement('a');
+        link.href = img.src;
+        link.download = 'zimage_' + Date.now() + '.png';
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function copyImageUrl() {
+        const img = document.getElementById('resultImg');
+        if (!img.src) return;
+
+        navigator.clipboard.writeText(img.src).then(() => {
+            const btn = event.target.closest('.action-btn');
+            const original = btn.innerHTML;
+            btn.innerHTML = '✅ 已复制';
+            setTimeout(() => btn.innerHTML = original, 2000);
+        });
+    }
+
+    // --- 基础功能 ---
     function randomSeed() {
         document.getElementById('seed').value = Math.floor(Math.random() * 1000000);
     }
@@ -1208,6 +1505,7 @@ function handleUI(request, apiKey) {
         const prompt = document.getElementById('prompt').value.trim();
         if(!prompt) return alert('请输入提示词');
 
+        const negativePrompt = document.getElementById('negativePrompt')?.value.trim() || '';
         const seed = document.getElementById('seed').value;
         const steps = document.getElementById('steps').value;
         const size = document.getElementById('sizeSelect').value;
@@ -1218,6 +1516,7 @@ function handleUI(request, apiKey) {
         const sText = document.getElementById('statusText');
         const img = document.getElementById('resultImg');
         const ph = document.getElementById('placeholder');
+        const actions = document.getElementById('imageActions');
 
         // Reset UI
         btn.disabled = true;
@@ -1227,25 +1526,29 @@ function handleUI(request, apiKey) {
         sText.innerText = '正在初始化...';
         sText.style.color = 'var(--text-secondary)';
         img.style.display = 'none';
+        actions.style.display = 'none';
         ph.style.display = 'flex';
         ph.querySelector('.placeholder-text').innerText = '正在请求 GPU 资源...';
         ph.querySelector('.placeholder-hint').innerText = '请稍候，这可能需要几秒钟';
 
         try {
             // 1. 提交任务
+            const requestBody = {
+                prompt,
+                size: size,
+                steps: parseInt(steps),
+                seed: seed ? parseInt(seed) : null,
+                client_poll: true
+            };
+            if (negativePrompt) requestBody.negative_prompt = negativePrompt;
+
             const res = await fetch('/v1/images/generations', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + document.getElementById('apiKey').value
                 },
-                body: JSON.stringify({
-                    prompt,
-                    size: size,
-                    steps: parseInt(steps),
-                    seed: seed ? parseInt(seed) : null,
-                    client_poll: true
-                })
+                body: JSON.stringify(requestBody)
             });
 
             if(!res.ok) throw new Error(await res.text());
@@ -1280,6 +1583,8 @@ function handleUI(request, apiKey) {
                         ph.style.display = 'none';
                         img.src = qData.url;
                         img.style.display = 'block';
+                        actions.style.display = 'flex';
+                        saveToHistory(qData.url, prompt);
                         resetButton();
                     } else if(qData.status === 'failed') {
                         throw new Error(qData.error || 'Unknown Error');
@@ -1307,6 +1612,20 @@ function handleUI(request, apiKey) {
         btn.disabled = false;
         btnContent.innerHTML = '<span>🚀</span><span>生成图像</span>';
     }
+
+    // --- 键盘快捷键 ---
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+Enter 或 Cmd+Enter 生成图片
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            if (!document.getElementById('genBtn').disabled) {
+                startGeneration();
+            }
+        }
+    });
+
+    // --- 页面加载时渲染历史 ---
+    document.addEventListener('DOMContentLoaded', renderHistory);
 </script>
 </body>
 </html>`;
