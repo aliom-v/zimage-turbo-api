@@ -234,13 +234,14 @@ async function submitTask(prompt, params = {}) {
     const payload = {
         "action": "create",
         "task_id": taskId,
-        "task_type": "text2img-z-image",
+        "task_type": "text2img",
         "task_data": {
             "prompt": fullPrompt,
             "size": params.size || CONFIG.DEFAULT_SIZE,
             "seed": params.seed || Math.floor(Math.random() * 1000000),
             "steps": params.steps || CONFIG.DEFAULT_STEPS,
-            "randomized": params.seed ? false : true
+            "randomized": params.seed ? false : true,
+            "model": "z-image-turbo"
         },
         "status": 0
     };
@@ -251,7 +252,10 @@ async function submitTask(prompt, params = {}) {
         method: "POST", headers: headers, body: JSON.stringify(payload)
     });
 
-    if (!res.ok) throw new Error(`Create Failed: ${res.status}`);
+    if (!res.ok) {
+        const errorText = await res.text().catch(() => '');
+        throw new Error(`Create Failed: ${res.status} ${errorText}`);
+    }
     const data = await res.json();
 
     if (!data.success) throw new Error(`API Refused: ${data.message}`);
