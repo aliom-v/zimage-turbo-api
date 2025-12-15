@@ -380,135 +380,810 @@ function handleUI(request, apiKey) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Z-Image Turbo 驾驶舱</title>
+    <title>Z-Image Turbo API</title>
     <style>
-        :root { --bg: #0f172a; --panel: #1e293b; --text: #f8fafc; --accent: #3b82f6; --border: #334155; --success: #22c55e; }
-        * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; min-height: 100vh; display: flex; }
-        
-        .sidebar { width: 340px; background: var(--panel); border-right: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; height: 100vh; flex-shrink: 0; }
-        .main { flex: 1; padding: 30px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; height: 100vh; }
-        
-        h1 { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 10px; color: var(--accent); }
-        .badge { font-size: 10px; background: rgba(59,130,246,0.2); color: var(--accent); padding: 2px 6px; border-radius: 4px; }
-        
-        .control-group { display: flex; flex-direction: column; gap: 8px; }
-        label { font-size: 12px; color: #94a3b8; font-weight: 600; display: flex; justify-content: space-between; }
-        
-        input, textarea, select { background: #0f172a; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; width: 100%; font-family: inherit; font-size: 13px; }
-        textarea { resize: vertical; min-height: 80px; }
-        
-        /* 尺寸选择器 */
-        .size-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .size-opt { background: #0f172a; border: 1px solid var(--border); border-radius: 6px; padding: 8px; cursor: pointer; text-align: center; transition: 0.2s; }
-        .size-opt:hover { border-color: var(--accent); }
-        .size-opt.active { background: var(--accent); border-color: var(--accent); color: white; }
-        .size-icon { height: 20px; width: 100%; margin-bottom: 4px; background: #334155; border-radius: 2px; }
-        .size-text { font-size: 10px; display: block; }
+        :root {
+            /* 背景色系统 */
+            --bg-primary: #0a0a0b;
+            --bg-secondary: #131316;
+            --bg-elevated: #1a1a1f;
+            --bg-hover: #222228;
+            --bg-active: #2a2a32;
+
+            /* 文字色系统 */
+            --text-primary: #f0f0f3;
+            --text-secondary: #a0a0ab;
+            --text-tertiary: #6b6b76;
+            --text-disabled: #4a4a52;
+
+            /* 品牌色 */
+            --accent-primary: #6366f1;
+            --accent-hover: #4f46e5;
+            --accent-active: #4338ca;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+
+            /* 功能色 */
+            --success: #10b981;
+            --error: #ef4444;
+
+            /* 边框色 */
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-default: rgba(255, 255, 255, 0.1);
+            --border-strong: rgba(255, 255, 255, 0.15);
+
+            /* 阴影系统 */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.4), 0 0 40px rgba(99, 102, 241, 0.2);
+
+            /* 间距系统 */
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-5: 1.5rem;
+            --space-6: 2rem;
+            --space-8: 3rem;
+
+            /* 圆角系统 */
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            --radius-full: 9999px;
+
+            /* 动画系统 */
+            --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+            /* 布局约束 */
+            --content-max-width: 900px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { background: var(--bg-primary); color-scheme: dark; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: var(--radius-full); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--bg-active); }
+
+        /* 顶部导航栏 */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(10, 10, 11, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: var(--space-4) var(--space-5);
+        }
+
+        .header-inner {
+            max-width: var(--content-max-width);
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .logo-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: var(--space-1) var(--space-3);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all var(--transition-fast);
+        }
+
+        .badge:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        /* 主内容区 */
+        .main-content {
+            max-width: var(--content-max-width);
+            margin: 0 auto;
+            padding: var(--space-6) var(--space-4);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-5);
+        }
+
+        /* 卡片基础样式 */
+        .card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-xl);
+            padding: var(--space-5);
+            transition: all var(--transition-base);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card:hover {
+            border-color: var(--border-strong);
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+
+        .card-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        /* 预览区 */
+        .preview-card {
+            min-height: 380px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            animation: fadeInScale 0.5s ease-out;
+            cursor: pointer;
+            transition: transform var(--transition-base);
+        }
+
+        .preview-image:hover {
+            transform: scale(1.02);
+        }
+
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .preview-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-4);
+            color: var(--text-tertiary);
+        }
+
+        .placeholder-icon {
+            width: 100px;
+            height: 100px;
+            background: var(--bg-secondary);
+            border: 2px dashed var(--border-default);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            opacity: 0.6;
+        }
+
+        .placeholder-text {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .placeholder-hint {
+            font-size: 0.875rem;
+            color: var(--text-disabled);
+        }
+
+        /* 提示词输入框 */
+        .prompt-card:focus-within {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: var(--space-4);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 1rem;
+            line-height: 1.6;
+            resize: vertical;
+            transition: all var(--transition-fast);
+        }
+
+        .prompt-textarea:focus {
+            outline: none;
+            background: var(--bg-elevated);
+            border-color: var(--accent-primary);
+        }
+
+        .prompt-textarea::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        /* 参数网格 */
+        .parameters-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--space-4);
+        }
+
+        @media (min-width: 640px) {
+            .parameters-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .param-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            transition: all var(--transition-fast);
+        }
+
+        .param-card:hover {
+            border-color: var(--border-strong);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .param-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-3);
+        }
+
+        /* 下拉选择器 */
+        .custom-select {
+            width: 100%;
+            padding: var(--space-3) var(--space-4);
+            padding-right: var(--space-8);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 0.9375rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b6b76' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .custom-select:hover {
+            border-color: var(--accent-primary);
+            background-color: var(--bg-hover);
+        }
+
+        .custom-select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        /* 滑块 */
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .slider-value {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            padding: var(--space-1) var(--space-2);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+        }
+
+        .custom-slider {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-full);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .custom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent-primary);
+            border: 3px solid var(--bg-elevated);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: var(--shadow-md);
+            transition: all var(--transition-fast);
+        }
+
+        .custom-slider::-webkit-slider-thumb:hover {
+            background: var(--accent-hover);
+            transform: scale(1.1);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .custom-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--accent-primary);
+            border: 3px solid var(--bg-elevated);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* 输入框 */
+        .custom-input {
+            width: 100%;
+            padding: var(--space-3) var(--space-4);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.9375rem;
+            transition: all var(--transition-fast);
+        }
+
+        .custom-input:hover {
+            border-color: var(--border-strong);
+            background: var(--bg-hover);
+        }
+
+        .custom-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: var(--bg-elevated);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .custom-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .input-hint {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            margin-top: var(--space-2);
+        }
+
+        .seed-row {
+            display: flex;
+            gap: var(--space-2);
+        }
+
+        .seed-row .custom-input {
+            flex: 1;
+        }
+
+        .dice-btn {
+            padding: var(--space-3);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-size: 1rem;
+        }
+
+        .dice-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+            transform: rotate(180deg);
+        }
+
+        /* 生成按钮 */
+        .action-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+        }
+
+        .generate-button {
+            width: 100%;
+            padding: var(--space-4) var(--space-6);
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
+            border: none;
+            border-radius: var(--radius-xl);
+            color: white;
+            font-size: 1.125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-base);
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .generate-button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
+            opacity: 0;
+            transition: opacity var(--transition-base);
+        }
+
+        .generate-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .generate-button:hover::before {
+            opacity: 1;
+        }
+
+        .generate-button:active {
+            transform: translateY(0);
+        }
+
+        .generate-button:disabled {
+            background: var(--bg-hover);
+            color: var(--text-disabled);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .button-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-2);
+        }
+
+        /* 加载动画 */
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
 
         /* 进度条 */
-        .progress-box { width: 100%; background: #334155; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 10px; display: none; }
-        .progress-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s ease; }
-        .status-text { font-size: 12px; color: var(--accent); text-align: center; margin-top: 5px; height: 18px; }
+        .progress-section {
+            display: none;
+        }
 
-        button { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; width: 100%; }
-        button:hover { opacity: 0.9; }
-        button:disabled { background: #475569; cursor: not-allowed; }
+        .progress-section.visible {
+            display: block;
+        }
 
-        .preview-area { width: 100%; max-width: 800px; flex: 1; display: flex; align-items: center; justify-content: center; background: #020617; border: 1px dashed var(--border); border-radius: 12px; position: relative; min-height: 400px; }
-        .preview-img { max-width: 100%; max-height: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border-radius: 4px; display: none; }
-        .placeholder { color: #475569; text-align: center; }
-        
-        .code-box { font-family: monospace; font-size: 11px; background: #000; padding: 10px; border-radius: 4px; color: #333; margin-top: 20px; word-break: break-all; color: #64748b; }
+        .progress-container {
+            width: 100%;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-full);
+            height: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-hover), var(--accent-primary));
+            background-size: 200% 100%;
+            border-radius: var(--radius-full);
+            transition: width var(--transition-base);
+            animation: shimmer 2s linear infinite;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .progress-text {
+            margin-top: var(--space-2);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        /* API 信息卡片 */
+        .api-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .api-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+        }
+
+        .api-actions {
+            display: flex;
+            gap: var(--space-2);
+        }
+
+        .icon-button {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: var(--space-2) var(--space-3);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            font-size: 0.8125rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .icon-button:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .code-block {
+            padding: var(--space-4);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .code-block .endpoint {
+            color: var(--accent-primary);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 639px) {
+            .main-content {
+                padding: var(--space-4) var(--space-3);
+                gap: var(--space-4);
+            }
+
+            .header {
+                padding: var(--space-3) var(--space-4);
+            }
+
+            .logo-title {
+                font-size: 1.125rem;
+            }
+
+            .preview-card {
+                min-height: 280px;
+            }
+
+            .generate-button {
+                padding: var(--space-4);
+                font-size: 1rem;
+            }
+
+            .api-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-3);
+            }
+        }
+
+        /* 减弱动画（用户偏好） */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
 
-<div class="sidebar">
-    <h1>Z-Image Turbo <span class="badge">v2.1</span></h1>
-    
-    <div class="control-group">
-        <label>API Key</label>
-        <input type="password" id="apiKey" value="${apiKey}" readonly onclick="this.type='text'">
+<!-- 顶部导航栏 -->
+<header class="header">
+    <div class="header-inner">
+        <div class="logo-section">
+            <div class="logo-icon">Z</div>
+            <h1 class="logo-title">Z-Image Turbo</h1>
+        </div>
+        <span class="badge">v2.1.1</span>
+    </div>
+</header>
+
+<!-- 主内容区 -->
+<main class="main-content">
+    <!-- 图像预览区 -->
+    <div class="card preview-card">
+        <div class="preview-placeholder" id="placeholder">
+            <div class="placeholder-icon">🎨</div>
+            <p class="placeholder-text">你的创意将在此呈现</p>
+            <p class="placeholder-hint">输入提示词，点击生成按钮开始</p>
+        </div>
+        <img id="resultImg" class="preview-image" style="display:none" onclick="window.open(this.src)">
     </div>
 
-    <div class="control-group">
-        <label>提示词 (Prompt)</label>
-        <textarea id="prompt" placeholder="Describe your image... (e.g. A futuristic city, cyberpunk style, 8k)">A cute cat, 8k high quality</textarea>
+    <!-- 提示词输入 -->
+    <div class="card prompt-card">
+        <div class="card-header">
+            <h2 class="card-title">💬 提示词</h2>
+        </div>
+        <textarea
+            id="prompt"
+            class="prompt-textarea"
+            placeholder="描述你想生成的图像，例如：一只在未来城市中飞翔的机械蝴蝶，霓虹灯光，8K 高清..."
+        >A cute cat in cyberpunk city, neon lights, 8k quality</textarea>
     </div>
 
-    <div class="control-group">
-        <label>尺寸 (Size)</label>
-        <div class="size-grid" id="sizeGrid">
+    <!-- 参数控制网格 -->
+    <div class="parameters-grid">
+        <!-- 尺寸比例 -->
+        <div class="param-card">
+            <label class="param-label">
+                <span>📐 尺寸比例</span>
+            </label>
+            <select id="sizeSelect" class="custom-select">
+                <option value="1024x1024">1:1 正方形</option>
+                <option value="1152x896">9:7 横向</option>
+                <option value="896x1152">7:9 竖向</option>
+                <option value="1152x864">4:3 横向</option>
+                <option value="864x1152">3:4 竖向</option>
+                <option value="1216x832">3:2 横向</option>
+                <option value="832x1216">2:3 竖向</option>
+                <option value="1344x768">16:9 宽屏</option>
+                <option value="768x1344">9:16 竖屏</option>
+            </select>
+        </div>
+
+        <!-- 生成步数 -->
+        <div class="param-card">
+            <label class="param-label">
+                <span>⚡ 生成步数</span>
+                <span class="slider-value" id="stepsVal">8</span>
+            </label>
+            <div class="slider-container">
+                <input type="range" id="steps" class="custom-slider" min="1" max="20" value="8"
+                       oninput="document.getElementById('stepsVal').innerText=this.value">
             </div>
-    </div>
+        </div>
 
-    <div class="control-group">
-        <label>步数 (Steps) <span id="stepsVal">8</span></label>
-        <input type="range" id="steps" min="1" max="20" value="8" oninput="document.getElementById('stepsVal').innerText=this.value">
-    </div>
-
-    <div class="control-group">
-        <label>随机种子 (Seed) <span style="font-weight:normal;cursor:pointer" onclick="randomSeed()">🎲</span></label>
-        <input type="number" id="seed" placeholder="Empty for random">
-    </div>
-
-    <div style="margin-top:auto">
-        <button id="genBtn" onclick="startGeneration()">🚀 开始生成</button>
-        <div class="status-text" id="statusText"></div>
-        <div class="progress-box" id="progressBox">
-            <div class="progress-bar" id="progressBar"></div>
+        <!-- 随机种子 -->
+        <div class="param-card">
+            <label class="param-label">
+                <span>🎲 随机种子</span>
+            </label>
+            <div class="seed-row">
+                <input type="number" id="seed" class="custom-input" placeholder="留空随机">
+                <button class="dice-btn" onclick="randomSeed()" title="随机生成">🎲</button>
+            </div>
+            <p class="input-hint">固定种子可复现结果</p>
         </div>
     </div>
-</div>
 
-<div class="main">
-    <div class="preview-area" id="previewArea">
-        <div class="placeholder" id="placeholder">
-            图像预览区域<br>Ready to generate
+    <!-- 生成按钮和进度 -->
+    <div class="action-section">
+        <button id="genBtn" class="generate-button" onclick="startGeneration()">
+            <span class="button-content" id="btnContent">
+                <span>🚀</span>
+                <span>生成图像</span>
+            </span>
+        </button>
+
+        <div class="progress-section" id="progressSection">
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+            </div>
+            <p class="progress-text" id="statusText">准备中...</p>
         </div>
-        <img id="resultImg" class="preview-img" onclick="window.open(this.src)">
     </div>
-    <div class="code-box">
-        API Endpoint: ${origin}/v1/images/generations <br>
-        Chat Endpoint: ${origin}/v1/chat/completions (Cherry Studio Support)
+
+    <!-- API 信息 -->
+    <div class="card api-card">
+        <div class="api-header">
+            <h3 class="card-title">📡 API 端点</h3>
+            <div class="api-actions">
+                <button class="icon-button" onclick="copyEndpoint()">📋 复制</button>
+            </div>
+        </div>
+        <div class="code-block">
+<span class="endpoint">${origin}/v1/images/generations</span>  (图像生成)
+<span class="endpoint">${origin}/v1/chat/completions</span>  (Chat 模式)
+<span class="endpoint">${origin}/v1/models</span>  (模型列表)
+        </div>
     </div>
-</div>
+
+    <!-- 隐藏的 API Key -->
+    <input type="hidden" id="apiKey" value="${apiKey}">
+</main>
 
 <script>
-    const SIZES = [
-        { label: "1:1", val: "1024x1024", iconH: "20px" },
-        { label: "9:7", val: "1152x896", iconH: "18px" },
-        { label: "7:9", val: "896x1152", iconH: "24px" },
-        { label: "4:3", val: "1152x864", iconH: "18px" },
-        { label: "3:4", val: "864x1152", iconH: "24px" },
-        { label: "3:2", val: "1216x832", iconH: "16px" },
-        { label: "2:3", val: "832x1216", iconH: "26px" },
-        { label: "16:9", val: "1344x768", iconH: "14px" },
-        { label: "9:16", val: "768x1344", iconH: "28px" }
-    ];
-
-    let currentSize = "1024x1024";
-
-    function initUI() {
-        const grid = document.getElementById('sizeGrid');
-        SIZES.forEach(s => {
-            const div = document.createElement('div');
-            div.className = \`size-opt \${s.val === currentSize ? 'active' : ''}\`;
-            div.onclick = () => selectSize(s.val, div);
-            div.innerHTML = \`<div class="size-icon" style="height:\${s.iconH};width:\${parseInt(s.iconH) > 20 ? '14px' : '20px'};margin:0 auto 4px auto"></div><span class="size-text">\${s.label}</span>\`;
-            grid.appendChild(div);
-        });
-    }
-
-    function selectSize(val, el) {
-        currentSize = val;
-        document.querySelectorAll('.size-opt').forEach(e => e.classList.remove('active'));
-        el.classList.add('active');
-    }
-
     function randomSeed() {
         document.getElementById('seed').value = Math.floor(Math.random() * 1000000);
+    }
+
+    function copyEndpoint() {
+        const text = '${origin}/v1/images/generations';
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = event.target.closest('.icon-button');
+            btn.innerHTML = '✅ 已复制';
+            setTimeout(() => btn.innerHTML = '📋 复制', 2000);
+        });
     }
 
     async function startGeneration() {
@@ -517,8 +1192,10 @@ function handleUI(request, apiKey) {
 
         const seed = document.getElementById('seed').value;
         const steps = document.getElementById('steps').value;
+        const size = document.getElementById('sizeSelect').value;
         const btn = document.getElementById('genBtn');
-        const pBox = document.getElementById('progressBox');
+        const btnContent = document.getElementById('btnContent');
+        const progressSection = document.getElementById('progressSection');
         const pBar = document.getElementById('progressBar');
         const sText = document.getElementById('statusText');
         const img = document.getElementById('resultImg');
@@ -526,12 +1203,15 @@ function handleUI(request, apiKey) {
 
         // Reset UI
         btn.disabled = true;
-        pBox.style.display = 'block';
+        btnContent.innerHTML = '<div class="loading-spinner"></div><span>生成中...</span>';
+        progressSection.classList.add('visible');
         pBar.style.width = '5%';
         sText.innerText = '正在初始化...';
+        sText.style.color = 'var(--text-secondary)';
         img.style.display = 'none';
-        ph.style.display = 'block';
-        ph.innerText = "正在请求 GPU 资源...";
+        ph.style.display = 'flex';
+        ph.querySelector('.placeholder-text').innerText = '正在请求 GPU 资源...';
+        ph.querySelector('.placeholder-hint').innerText = '请稍候，这可能需要几秒钟';
 
         try {
             // 1. 提交任务
@@ -543,65 +1223,72 @@ function handleUI(request, apiKey) {
                 },
                 body: JSON.stringify({
                     prompt,
-                    size: currentSize,
+                    size: size,
                     steps: parseInt(steps),
                     seed: seed ? parseInt(seed) : null,
-                    client_poll: true // 开启 WebUI 轮询模式
+                    client_poll: true
                 })
             });
 
             if(!res.ok) throw new Error(await res.text());
             const initData = await res.json();
-            
+
             if(initData.status !== 'submitted') throw new Error("任务提交失败");
-            
+
             const taskId = initData.task_id;
             const authContext = initData.auth_context;
-            
+
             // 2. 客户端轮询
             let progress = 10;
             const pollInterval = setInterval(async () => {
                 try {
-                    // 模拟进度条自然增长
                     if(progress < 90) progress += (Math.random() * 5);
                     pBar.style.width = progress + '%';
-                    sText.innerText = \`生成中... \${Math.floor(progress)}%\`;
+                    sText.innerText = '生成中... ' + Math.floor(progress) + '%';
 
                     const qRes = await fetch('/v1/query/status', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ task_id: taskId, auth_context: authContext })
                     });
-                    
+
                     const qData = await qRes.json();
-                    
+
                     if(qData.status === 'success') {
                         clearInterval(pollInterval);
                         pBar.style.width = '100%';
-                        sText.innerText = '✅ 生成完成';
+                        sText.innerText = '✅ 生成完成！点击图片查看大图';
+                        sText.style.color = 'var(--success)';
                         ph.style.display = 'none';
                         img.src = qData.url;
                         img.style.display = 'block';
-                        btn.disabled = false;
+                        resetButton();
                     } else if(qData.status === 'failed') {
                         throw new Error(qData.error || 'Unknown Error');
                     }
                 } catch(e) {
                     clearInterval(pollInterval);
                     sText.innerText = '❌ ' + e.message;
-                    sText.style.color = '#ef4444';
-                    btn.disabled = false;
+                    sText.style.color = 'var(--error)';
+                    resetButton();
                 }
             }, 1500);
 
         } catch(e) {
-            sText.innerText = '❌ 请求失败';
-            ph.innerText = e.message;
-            btn.disabled = false;
+            sText.innerText = '❌ 请求失败: ' + e.message;
+            sText.style.color = 'var(--error)';
+            ph.querySelector('.placeholder-text').innerText = '生成失败';
+            ph.querySelector('.placeholder-hint').innerText = e.message;
+            resetButton();
         }
     }
 
-    initUI();
+    function resetButton() {
+        const btn = document.getElementById('genBtn');
+        const btnContent = document.getElementById('btnContent');
+        btn.disabled = false;
+        btnContent.innerHTML = '<span>🚀</span><span>生成图像</span>';
+    }
 </script>
 </body>
 </html>`;
