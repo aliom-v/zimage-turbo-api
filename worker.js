@@ -522,96 +522,102 @@ function handleUI(request, apiKey) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Z-Image Turbo API</title>
     <style>
-        :root {
-            /* 背景色系统 */
+        /* 暗色主题（默认） */
+        :root, [data-theme="dark"] {
             --bg-primary: #0a0a0b;
             --bg-secondary: #131316;
             --bg-elevated: #1a1a1f;
             --bg-hover: #222228;
             --bg-active: #2a2a32;
-
-            /* 文字色系统 */
             --text-primary: #f0f0f3;
             --text-secondary: #a0a0ab;
             --text-tertiary: #6b6b76;
-            --text-disabled: #4a4a52;
-
-            /* 品牌色 */
-            --accent-primary: #6366f1;
-            --accent-hover: #4f46e5;
-            --accent-active: #4338ca;
-            --accent-glow: rgba(99, 102, 241, 0.3);
-
-            /* 功能色 */
-            --success: #10b981;
-            --error: #ef4444;
-
-            /* 边框色 */
             --border-subtle: rgba(255, 255, 255, 0.06);
             --border-default: rgba(255, 255, 255, 0.1);
             --border-strong: rgba(255, 255, 255, 0.15);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            --header-bg: rgba(10, 10, 11, 0.85);
+            --color-scheme: dark;
+        }
 
-            /* 阴影系统 */
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
-            --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.4), 0 0 40px rgba(99, 102, 241, 0.2);
+        /* 亮色主题 */
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-elevated: #ffffff;
+            --bg-hover: #f1f5f9;
+            --bg-active: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-tertiary: #94a3b8;
+            --border-subtle: rgba(0, 0, 0, 0.05);
+            --border-default: rgba(0, 0, 0, 0.1);
+            --border-strong: rgba(0, 0, 0, 0.15);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --header-bg: rgba(248, 250, 252, 0.9);
+            --color-scheme: light;
+        }
 
-            /* 间距系统 */
+        /* 共享变量 */
+        :root {
+            --accent-primary: #6366f1;
+            --accent-hover: #4f46e5;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            --success: #10b981;
+            --error: #ef4444;
             --space-1: 0.25rem;
             --space-2: 0.5rem;
             --space-3: 0.75rem;
             --space-4: 1rem;
             --space-5: 1.5rem;
             --space-6: 2rem;
-            --space-8: 3rem;
-
-            /* 圆角系统 */
             --radius-sm: 0.375rem;
             --radius-md: 0.5rem;
             --radius-lg: 0.75rem;
             --radius-xl: 1rem;
             --radius-full: 9999px;
-
-            /* 动画系统 */
-            --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-            --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-            --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
-
-            /* 布局约束 */
-            --content-max-width: 900px;
+            --transition-fast: 150ms ease;
+            --transition-base: 250ms ease;
+            --content-max-width: 720px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        html { background: var(--bg-primary); color-scheme: dark; }
+        html {
+            background: var(--bg-primary);
+            color-scheme: var(--color-scheme);
+            transition: background var(--transition-base);
+        }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             font-size: 1rem;
             line-height: 1.5;
             color: var(--text-primary);
             background: var(--bg-primary);
-            -webkit-font-smoothing: antialiased;
             min-height: 100vh;
+            transition: background var(--transition-base), color var(--transition-base);
         }
 
-        /* 滚动条美化 */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
-        ::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: var(--radius-full); }
-        ::-webkit-scrollbar-thumb:hover { background: var(--bg-active); }
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: var(--radius-full); }
 
-        /* 顶部导航栏 */
+        /* 导航栏 */
         .header {
             position: sticky;
             top: 0;
             z-index: 50;
-            background: rgba(10, 10, 11, 0.85);
+            background: var(--header-bg);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border-subtle);
-            padding: var(--space-4) var(--space-5);
+            padding: var(--space-3) var(--space-4);
+            transition: background var(--transition-base);
         }
 
         .header-inner {
@@ -625,76 +631,94 @@ function handleUI(request, apiKey) {
         .logo-section {
             display: flex;
             align-items: center;
-            gap: var(--space-3);
+            gap: var(--space-2);
         }
 
         .logo-icon {
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
             border-radius: var(--radius-md);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
-            box-shadow: var(--shadow-md);
+            font-size: 1rem;
+            color: white;
+            font-weight: 700;
         }
 
         .logo-title {
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: var(--text-primary);
-            letter-spacing: -0.02em;
         }
 
-        .badge {
-            display: inline-flex;
+        .header-actions {
+            display: flex;
             align-items: center;
-            padding: var(--space-1) var(--space-3);
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-default);
+            gap: var(--space-2);
+        }
+
+        /* 主题切换按钮 */
+        .theme-toggle {
+            width: 36px;
+            height: 36px;
             border-radius: var(--radius-full);
-            font-size: 0.75rem;
-            font-weight: 500;
+            border: 1px solid var(--border-default);
+            background: var(--bg-secondary);
             color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
             transition: all var(--transition-fast);
         }
 
-        .badge:hover {
+        .theme-toggle:hover {
+            background: var(--bg-hover);
             border-color: var(--accent-primary);
             color: var(--accent-primary);
+            transform: rotate(15deg);
+        }
+
+        .badge {
+            padding: var(--space-1) var(--space-2);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-full);
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
         }
 
         /* 主内容区 */
         .main-content {
             max-width: var(--content-max-width);
             margin: 0 auto;
-            padding: var(--space-6) var(--space-4);
+            padding: var(--space-5) var(--space-4);
             display: flex;
             flex-direction: column;
-            gap: var(--space-5);
+            gap: var(--space-4);
         }
 
-        /* 卡片基础样式 */
+        /* 卡片 */
         .card {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-default);
-            border-radius: var(--radius-xl);
-            padding: var(--space-5);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
             transition: all var(--transition-base);
-            box-shadow: var(--shadow-sm);
         }
 
         .card:hover {
-            border-color: var(--border-strong);
-            box-shadow: var(--shadow-md);
+            border-color: var(--border-default);
         }
 
         .card-header {
             display: flex;
             align-items: center;
             gap: var(--space-2);
-            margin-bottom: var(--space-4);
+            margin-bottom: var(--space-3);
         }
 
         .card-title {
@@ -744,26 +768,21 @@ function handleUI(request, apiKey) {
         }
 
         .placeholder-icon {
-            width: 100px;
-            height: 100px;
-            background: var(--bg-secondary);
+            width: 64px;
+            height: 64px;
+            background: var(--bg-hover);
             border: 2px dashed var(--border-default);
             border-radius: var(--radius-lg);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem;
-            opacity: 0.6;
+            font-size: 1.5rem;
+            opacity: 0.5;
         }
 
         .placeholder-text {
-            font-size: 1rem;
-            font-weight: 500;
-        }
-
-        .placeholder-hint {
-            font-size: 0.875rem;
-            color: var(--text-disabled);
+            font-size: 0.9rem;
+            color: var(--text-tertiary);
         }
 
         /* 提示词输入框 */
@@ -797,99 +816,88 @@ function handleUI(request, apiKey) {
             color: var(--text-tertiary);
         }
 
-        /* 参数网格 */
-        .parameters-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: var(--space-4);
+        /* 紧凑控件栏 */
+        .compact-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            align-items: center;
         }
 
-        @media (min-width: 640px) {
-            .parameters-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
+        .compact-controls .custom-select {
+            width: auto;
+            min-width: 80px;
+            padding: var(--space-2) var(--space-6) var(--space-2) var(--space-3);
+            font-size: 0.875rem;
         }
 
-        .param-card {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-default);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-            transition: all var(--transition-fast);
-        }
-
-        .param-card:hover {
-            border-color: var(--border-strong);
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .param-label {
+        .steps-control {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: var(--space-2);
+            flex: 1;
+            min-width: 120px;
+            max-width: 200px;
+        }
+
+        .steps-control .custom-slider {
+            flex: 1;
+        }
+
+        .seed-control {
+            display: flex;
+            gap: var(--space-1);
+        }
+
+        .seed-control .custom-input {
+            width: 80px;
+            padding: var(--space-2) var(--space-2);
             font-size: 0.875rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-            margin-bottom: var(--space-3);
+            font-family: inherit;
+        }
+
+        .slider-value {
+            min-width: 28px;
+            padding: var(--space-1);
+            background: var(--bg-hover);
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            text-align: center;
         }
 
         /* 下拉选择器 */
         .custom-select {
-            width: 100%;
-            padding: var(--space-3) var(--space-4);
-            padding-right: var(--space-8);
+            padding: var(--space-2) var(--space-6) var(--space-2) var(--space-3);
             background: var(--bg-secondary);
             border: 1px solid var(--border-default);
             border-radius: var(--radius-md);
             color: var(--text-primary);
-            font-size: 0.9375rem;
+            font-size: 0.875rem;
             cursor: pointer;
             transition: all var(--transition-fast);
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b6b76' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b76' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 12px center;
+            background-position: right 8px center;
         }
 
         .custom-select:hover {
             border-color: var(--accent-primary);
-            background-color: var(--bg-hover);
         }
 
         .custom-select:focus {
             outline: none;
             border-color: var(--accent-primary);
-            box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
         /* 滑块 */
-        .slider-container {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-2);
-        }
-
-        .slider-value {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 40px;
-            padding: var(--space-1) var(--space-2);
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-default);
-            border-radius: var(--radius-md);
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--accent-primary);
-        }
-
         .custom-slider {
-            width: 100%;
-            height: 6px;
+            height: 4px;
             -webkit-appearance: none;
             appearance: none;
-            background: var(--bg-secondary);
+            background: var(--border-default);
             border-radius: var(--radius-full);
             outline: none;
             cursor: pointer;
@@ -897,133 +905,83 @@ function handleUI(request, apiKey) {
 
         .custom-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
+            width: 14px;
+            height: 14px;
             background: var(--accent-primary);
-            border: 3px solid var(--bg-elevated);
             border-radius: 50%;
             cursor: pointer;
-            box-shadow: var(--shadow-md);
-            transition: all var(--transition-fast);
+            transition: transform var(--transition-fast);
         }
 
         .custom-slider::-webkit-slider-thumb:hover {
-            background: var(--accent-hover);
-            transform: scale(1.1);
-            box-shadow: var(--shadow-glow);
+            transform: scale(1.2);
         }
 
         .custom-slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
+            width: 14px;
+            height: 14px;
             background: var(--accent-primary);
-            border: 3px solid var(--bg-elevated);
+            border: none;
             border-radius: 50%;
             cursor: pointer;
         }
 
         /* 输入框 */
         .custom-input {
-            width: 100%;
-            padding: var(--space-3) var(--space-4);
+            padding: var(--space-2) var(--space-3);
             background: var(--bg-secondary);
             border: 1px solid var(--border-default);
             border-radius: var(--radius-md);
             color: var(--text-primary);
-            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-            font-size: 0.9375rem;
+            font-size: 0.875rem;
             transition: all var(--transition-fast);
         }
 
         .custom-input:hover {
             border-color: var(--border-strong);
-            background: var(--bg-hover);
         }
 
         .custom-input:focus {
             outline: none;
             border-color: var(--accent-primary);
-            background: var(--bg-elevated);
-            box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
         .custom-input::placeholder {
             color: var(--text-tertiary);
         }
 
-        .input-hint {
-            font-size: 0.75rem;
-            color: var(--text-tertiary);
-            margin-top: var(--space-2);
-        }
-
-        .seed-row {
-            display: flex;
-            gap: var(--space-2);
-        }
-
-        .seed-row .custom-input {
-            flex: 1;
-        }
-
         .dice-btn {
-            padding: var(--space-3);
+            padding: var(--space-2);
             background: var(--bg-secondary);
             border: 1px solid var(--border-default);
             border-radius: var(--radius-md);
-            color: var(--text-secondary);
             cursor: pointer;
             transition: all var(--transition-fast);
-            font-size: 1rem;
+            font-size: 0.875rem;
         }
 
         .dice-btn:hover {
             background: var(--bg-hover);
             border-color: var(--accent-primary);
-            color: var(--accent-primary);
-            transform: rotate(180deg);
         }
 
         /* 生成按钮 */
-        .action-section {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-4);
-        }
-
         .generate-button {
-            width: 100%;
-            padding: var(--space-4) var(--space-6);
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
+            padding: var(--space-2) var(--space-5);
+            background: var(--accent-primary);
             border: none;
-            border-radius: var(--radius-xl);
+            border-radius: var(--radius-md);
             color: white;
-            font-size: 1.125rem;
+            font-size: 0.875rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all var(--transition-base);
-            box-shadow: var(--shadow-md);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .generate-button::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
-            opacity: 0;
-            transition: opacity var(--transition-base);
+            transition: all var(--transition-fast);
+            margin-left: auto;
         }
 
         .generate-button:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-glow);
-        }
-
-        .generate-button:hover::before {
-            opacity: 1;
+            background: var(--accent-hover);
+            transform: translateY(-1px);
         }
 
         .generate-button:active {
@@ -1032,27 +990,64 @@ function handleUI(request, apiKey) {
 
         .generate-button:disabled {
             background: var(--bg-hover);
-            color: var(--text-disabled);
+            color: var(--text-tertiary);
             cursor: not-allowed;
             transform: none;
-            box-shadow: none;
         }
 
-        .button-content {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-2);
+        /* 文字按钮 */
+        .text-btn {
+            background: none;
+            border: none;
+            color: var(--text-tertiary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: color var(--transition-fast);
+        }
+
+        .text-btn:hover {
+            color: var(--accent-primary);
+        }
+
+        /* API 折叠 */
+        .api-details {
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+        }
+
+        .api-summary {
+            cursor: pointer;
+            padding: var(--space-2);
+            user-select: none;
+            transition: color var(--transition-fast);
+        }
+
+        .api-summary:hover {
+            color: var(--text-secondary);
+        }
+
+        .api-details .code-block {
+            margin-top: var(--space-2);
+            padding: var(--space-3);
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            font-family: monospace;
+            font-size: 0.75rem;
+            line-height: 1.8;
+            white-space: pre-line;
+            color: var(--text-secondary);
         }
 
         /* 加载动画 */
         .loading-spinner {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border: 2px solid rgba(255, 255, 255, 0.3);
             border-top-color: white;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
+            display: inline-block;
+            margin-right: var(--space-2);
         }
 
         @keyframes spin {
@@ -1072,117 +1067,317 @@ function handleUI(request, apiKey) {
             width: 100%;
             background: var(--bg-secondary);
             border-radius: var(--radius-full);
-            height: 8px;
+            height: 4px;
             overflow: hidden;
-            position: relative;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--accent-primary), var(--accent-hover), var(--accent-primary));
-            background-size: 200% 100%;
-            border-radius: var(--radius-full);
-            transition: width var(--transition-base);
-            animation: shimmer 2s linear infinite;
-            box-shadow: 0 0 10px var(--accent-glow);
-        }
-
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
         }
 
         .progress-text {
             margin-top: var(--space-2);
-            font-size: 0.875rem;
+            font-size: 0.8rem;
             color: var(--text-secondary);
             text-align: center;
-        }
-
-        /* API 信息卡片 */
-        .api-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-subtle);
-        }
-
-        .api-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-4);
-        }
-
-        .api-actions {
-            display: flex;
-            gap: var(--space-2);
-        }
-
-        .icon-button {
-            display: flex;
-            align-items: center;
-            gap: var(--space-1);
-            padding: var(--space-2) var(--space-3);
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-default);
-            border-radius: var(--radius-md);
-            color: var(--text-secondary);
-            font-size: 0.8125rem;
-            cursor: pointer;
-            transition: all var(--transition-fast);
-        }
-
-        .icon-button:hover {
-            background: var(--bg-hover);
-            border-color: var(--accent-primary);
-            color: var(--accent-primary);
-        }
-
-        .code-block {
-            padding: var(--space-4);
-            background: var(--bg-primary);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-lg);
-            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-            font-size: 0.8125rem;
-            color: var(--text-secondary);
-            overflow-x: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-
-        .code-block .endpoint {
-            color: var(--accent-primary);
         }
 
         /* 响应式设计 */
         @media (max-width: 639px) {
             .main-content {
                 padding: var(--space-4) var(--space-3);
-                gap: var(--space-4);
             }
 
-            .header {
-                padding: var(--space-3) var(--space-4);
+            .compact-controls {
+                flex-direction: column;
+                align-items: stretch;
             }
 
-            .logo-title {
-                font-size: 1.125rem;
-            }
-
-            .preview-card {
-                min-height: 280px;
+            .compact-controls .custom-select,
+            .steps-control,
+            .seed-control,
+            .generate-button {
+                width: 100%;
+                max-width: none;
             }
 
             .generate-button {
-                padding: var(--space-4);
-                font-size: 1rem;
+                margin-left: 0;
             }
 
-            .api-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: var(--space-3);
+            .preview-card {
+                min-height: 240px;
             }
+        }
+
+        /* 页面加载动画 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+
+        .stagger-1 { animation-delay: 0.1s; }
+        .stagger-2 { animation-delay: 0.2s; }
+        .stagger-3 { animation-delay: 0.3s; }
+        .stagger-4 { animation-delay: 0.4s; }
+        .stagger-5 { animation-delay: 0.5s; }
+
+        /* Toast 通知 */
+        .toast-container {
+            position: fixed;
+            bottom: var(--space-6);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+            pointer-events: none;
+        }
+
+        .toast {
+            padding: var(--space-3) var(--space-5);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-lg);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(12px);
+            animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            pointer-events: auto;
+        }
+
+        .toast.success {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.15);
+        }
+
+        .toast.error {
+            border-color: var(--error);
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        .toast.hiding {
+            animation: toastOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes toastOut {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px) scale(0.9);
+            }
+        }
+
+        /* 按钮涟漪效果 */
+        .ripple-effect {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0);
+            animation: ripple 0.6s ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        /* 骨架屏动画 */
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                var(--bg-secondary) 0%,
+                var(--bg-hover) 50%,
+                var(--bg-secondary) 100%
+            );
+            background-size: 200% 100%;
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+            border-radius: var(--radius-lg);
+        }
+
+        @keyframes skeleton-pulse {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-preview {
+            width: 100%;
+            height: 300px;
+            display: none;
+        }
+
+        /* 改进的图片出现动画 */
+        @keyframes imageReveal {
+            0% {
+                opacity: 0;
+                transform: scale(0.9);
+                filter: blur(10px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+                filter: blur(0);
+            }
+        }
+
+        .preview-image.revealing {
+            animation: imageReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* 图片操作按钮改进 */
+        .image-actions {
+            position: absolute;
+            bottom: var(--space-4);
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            display: flex;
+            gap: var(--space-2);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(12px);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-lg);
+            opacity: 0;
+            transition: all var(--transition-base);
+        }
+
+        .image-actions.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* 脉动效果 - 用于生成时 */
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 20px var(--accent-glow);
+            }
+            50% {
+                box-shadow: 0 0 40px var(--accent-glow), 0 0 60px rgba(99, 102, 241, 0.2);
+            }
+        }
+
+        .generating .preview-card {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        /* 悬浮微动效 */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .placeholder-icon {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* 改进进度条 */
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                var(--accent-primary),
+                var(--accent-hover),
+                #818cf8,
+                var(--accent-hover),
+                var(--accent-primary)
+            );
+            background-size: 300% 100%;
+            border-radius: var(--radius-full);
+            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            animation: progress-shimmer 2s linear infinite;
+            box-shadow: 0 0 15px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        @keyframes progress-shimmer {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+
+        /* 背景渐变动画 */
+        .main-content::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+            animation: bgShift 20s ease-in-out infinite alternate;
+        }
+
+        @keyframes bgShift {
+            0% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* 输入框聚焦动画 */
+        .prompt-textarea, .custom-input, .custom-select {
+            transition: all var(--transition-base), box-shadow 0.3s ease;
+        }
+
+        /* 历史记录项改进动画 */
+        .history-item {
+            aspect-ratio: 1;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all var(--transition-base);
+            transform-origin: center;
+        }
+
+        .history-item:hover {
+            border-color: var(--accent-primary);
+            transform: scale(1.08);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .history-item:active {
+            transform: scale(0.98);
         }
 
         /* 减弱动画（用户偏好） */
@@ -1191,20 +1386,6 @@ function handleUI(request, apiKey) {
                 animation-duration: 0.01ms !important;
                 transition-duration: 0.01ms !important;
             }
-        }
-
-        /* 图片操作按钮 */
-        .image-actions {
-            position: absolute;
-            bottom: var(--space-4);
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: var(--space-2);
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(8px);
-            padding: var(--space-2) var(--space-3);
-            border-radius: var(--radius-lg);
         }
 
         .action-btn {
@@ -1221,6 +1402,11 @@ function handleUI(request, apiKey) {
         .action-btn:hover {
             background: var(--accent-primary);
             border-color: var(--accent-primary);
+            transform: translateY(-1px);
+        }
+
+        .action-btn:active {
+            transform: translateY(0) scale(0.98);
         }
 
         /* 历史记录网格 */
@@ -1229,20 +1415,6 @@ function handleUI(request, apiKey) {
             grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
             gap: var(--space-3);
             margin-top: var(--space-3);
-        }
-
-        .history-item {
-            aspect-ratio: 1;
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            cursor: pointer;
-            transition: all var(--transition-fast);
-            border: 2px solid transparent;
-        }
-
-        .history-item:hover {
-            border-color: var(--accent-primary);
-            transform: scale(1.05);
         }
 
         .history-item img {
@@ -1259,148 +1431,147 @@ function handleUI(request, apiKey) {
 </head>
 <body>
 
+<!-- Toast 通知容器 -->
+<div class="toast-container" id="toastContainer"></div>
+
 <!-- 顶部导航栏 -->
-<header class="header">
+<header class="header fade-in-up">
     <div class="header-inner">
         <div class="logo-section">
             <div class="logo-icon">Z</div>
-            <h1 class="logo-title">Z-Image Turbo</h1>
+            <h1 class="logo-title">Z-Image</h1>
         </div>
-        <span class="badge">v2.3.0</span>
+        <div class="header-actions">
+            <span class="badge">v2.3</span>
+            <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切换主题">
+                <span id="themeIcon">🌙</span>
+            </button>
+        </div>
     </div>
 </header>
 
 <!-- 主内容区 -->
-<main class="main-content">
+<main class="main-content" id="mainContent">
     <!-- 图像预览区 -->
-    <div class="card preview-card">
+    <div class="card preview-card fade-in-up stagger-1">
+        <div class="skeleton skeleton-preview" id="skeletonPreview"></div>
         <div class="preview-placeholder" id="placeholder">
             <div class="placeholder-icon">🎨</div>
-            <p class="placeholder-text">你的创意将在此呈现</p>
-            <p class="placeholder-hint">输入提示词，按 Ctrl+Enter 或点击生成按钮开始</p>
+            <p class="placeholder-text">输入提示词开始创作</p>
         </div>
         <img id="resultImg" class="preview-image" style="display:none" onclick="window.open(this.src)">
-        <div class="image-actions" id="imageActions" style="display:none">
-            <button class="action-btn" onclick="downloadImage()" title="下载图片">⬇️ 下载</button>
-            <button class="action-btn" onclick="copyImageUrl()" title="复制链接">🔗 复制链接</button>
+        <div class="image-actions" id="imageActions">
+            <button class="action-btn" onclick="downloadImage()">下载</button>
+            <button class="action-btn" onclick="copyImageUrl()">复制链接</button>
         </div>
     </div>
 
     <!-- 提示词输入 -->
-    <div class="card prompt-card">
-        <div class="card-header">
-            <h2 class="card-title">💬 提示词</h2>
-        </div>
+    <div class="card fade-in-up stagger-2">
         <textarea
             id="prompt"
             class="prompt-textarea"
-            placeholder="描述你想生成的图像，例如：一只在未来城市中飞翔的机械蝴蝶，霓虹灯光，8K 高清..."
+            placeholder="描述你想生成的图像..."
         >A cute cat in cyberpunk city, neon lights, 8k quality</textarea>
-        <div class="negative-prompt-section">
-            <label class="param-label" style="margin-top: var(--space-3);">
-                <span>🚫 负面提示词 (可选)</span>
-            </label>
-            <input
-                type="text"
-                id="negativePrompt"
-                class="custom-input"
-                placeholder="不想出现的内容，如：blurry, low quality, text..."
-            >
-        </div>
+        <input
+            type="text"
+            id="negativePrompt"
+            class="custom-input"
+            style="margin-top: var(--space-3);"
+            placeholder="负面提示词（可选）"
+        >
     </div>
 
-    <!-- 参数控制网格 -->
-    <div class="parameters-grid">
-        <!-- 尺寸比例 -->
-        <div class="param-card">
-            <label class="param-label">
-                <span>📐 尺寸比例</span>
-            </label>
-            <select id="sizeSelect" class="custom-select">
-                <option value="1024x1024">1:1 正方形</option>
-                <option value="1152x896">9:7 横向</option>
-                <option value="896x1152">7:9 竖向</option>
-                <option value="1152x864">4:3 横向</option>
-                <option value="864x1152">3:4 竖向</option>
-                <option value="1216x832">3:2 横向</option>
-                <option value="832x1216">2:3 竖向</option>
-                <option value="1344x768">16:9 宽屏</option>
-                <option value="768x1344">9:16 竖屏</option>
-            </select>
+    <!-- 参数 + 生成按钮 -->
+    <div class="compact-controls fade-in-up stagger-3">
+        <select id="sizeSelect" class="custom-select">
+            <option value="1024x1024">1:1</option>
+            <option value="1152x896">横向</option>
+            <option value="896x1152">竖向</option>
+            <option value="1344x768">宽屏</option>
+            <option value="768x1344">竖屏</option>
+        </select>
+        <div class="steps-control">
+            <input type="range" id="steps" class="custom-slider" min="1" max="20" value="8"
+                   oninput="document.getElementById('stepsVal').innerText=this.value">
+            <span class="slider-value" id="stepsVal">8</span>
         </div>
-
-        <!-- 生成步数 -->
-        <div class="param-card">
-            <label class="param-label">
-                <span>⚡ 生成步数</span>
-                <span class="slider-value" id="stepsVal">8</span>
-            </label>
-            <div class="slider-container">
-                <input type="range" id="steps" class="custom-slider" min="1" max="20" value="8"
-                       oninput="document.getElementById('stepsVal').innerText=this.value">
-            </div>
+        <div class="seed-control">
+            <input type="number" id="seed" class="custom-input" placeholder="种子">
+            <button class="dice-btn" onclick="randomSeed()">🎲</button>
         </div>
-
-        <!-- 随机种子 -->
-        <div class="param-card">
-            <label class="param-label">
-                <span>🎲 随机种子</span>
-            </label>
-            <div class="seed-row">
-                <input type="number" id="seed" class="custom-input" placeholder="留空随机">
-                <button class="dice-btn" onclick="randomSeed()" title="随机生成">🎲</button>
-            </div>
-            <p class="input-hint">固定种子可复现结果</p>
-        </div>
-    </div>
-
-    <!-- 生成按钮和进度 -->
-    <div class="action-section">
         <button id="genBtn" class="generate-button" onclick="startGeneration()">
-            <span class="button-content" id="btnContent">
-                <span>🚀</span>
-                <span>生成图像</span>
-            </span>
+            <span class="button-content" id="btnContent">生成</span>
         </button>
-
-        <div class="progress-section" id="progressSection">
-            <div class="progress-container">
-                <div class="progress-bar" id="progressBar" style="width: 0%"></div>
-            </div>
-            <p class="progress-text" id="statusText">准备中...</p>
-        </div>
     </div>
 
-    <!-- API 信息 -->
-    <div class="card api-card">
-        <div class="api-header">
-            <h3 class="card-title">📡 API 端点</h3>
-            <div class="api-actions">
-                <button class="icon-button" onclick="copyEndpoint()">📋 复制</button>
-            </div>
+    <!-- 进度条 -->
+    <div class="progress-section" id="progressSection">
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar" style="width: 0%"></div>
         </div>
-        <div class="code-block">
-<span class="endpoint">${origin}/v1/images/generations</span>  (图像生成)
-<span class="endpoint">${origin}/v1/chat/completions</span>  (Chat 模式)
-<span class="endpoint">${origin}/v1/models</span>  (模型列表)
-<span class="endpoint">${origin}/v1/health</span>  (健康检查)
-        </div>
+        <p class="progress-text" id="statusText">准备中...</p>
     </div>
 
     <!-- 生成历史 -->
-    <div class="card history-card" id="historyCard" style="display:none">
-        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
-            <h3 class="card-title">📜 生成历史</h3>
-            <button class="icon-button" onclick="clearHistory()">🗑️ 清空</button>
+    <div class="card history-card fade-in-up" id="historyCard" style="display:none">
+        <div class="card-header" style="justify-content:space-between;">
+            <span class="card-title">历史记录</span>
+            <button class="text-btn" onclick="clearHistory()">清空</button>
         </div>
         <div class="history-grid" id="historyGrid"></div>
     </div>
 
-    <!-- 隐藏的 API Key -->
+    <!-- API 信息（折叠） -->
+    <details class="api-details fade-in-up">
+        <summary class="api-summary">API 端点</summary>
+        <div class="code-block">
+${origin}/v1/images/generations
+${origin}/v1/chat/completions
+${origin}/v1/models</div>
+    </details>
+
     <input type="hidden" id="apiKey" value="${apiKey}">
 </main>
 
 <script>
+    // --- 主题切换 ---
+    function toggleTheme() {
+        const html = document.documentElement;
+        const icon = document.getElementById('themeIcon');
+        const current = html.getAttribute('data-theme') || 'dark';
+        const next = current === 'dark' ? 'light' : 'dark';
+
+        html.setAttribute('data-theme', next);
+        icon.textContent = next === 'dark' ? '🌙' : '☀️';
+        localStorage.setItem('theme', next);
+    }
+
+    // 初始化主题
+    (function initTheme() {
+        const saved = localStorage.getItem('theme');
+        const prefer = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        const theme = saved || prefer;
+
+        document.documentElement.setAttribute('data-theme', theme);
+        const icon = document.getElementById('themeIcon');
+        if (icon) icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+    })();
+
+    // --- Toast 通知系统 ---
+    function showToast(message, type = 'default', duration = 3000) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast ' + type;
+        toast.textContent = message;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('hiding');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+
     // --- 历史记录管理 ---
     const HISTORY_KEY = 'zimage_history';
     const MAX_HISTORY = 20;
@@ -1443,13 +1614,20 @@ function handleUI(request, apiKey) {
             const img = document.getElementById('resultImg');
             const ph = document.getElementById('placeholder');
             const actions = document.getElementById('imageActions');
+
             img.src = history[index].url;
+            img.classList.add('revealing');
             img.style.display = 'block';
             ph.style.display = 'none';
-            actions.style.display = 'flex';
+            actions.classList.add('visible');
+
+            // 移除动画类以便下次使用
+            setTimeout(() => img.classList.remove('revealing'), 700);
+
             if (history[index].prompt) {
                 document.getElementById('prompt').value = history[index].prompt;
             }
+            showToast('已加载历史图片', 'success');
         }
     }
 
@@ -1457,6 +1635,7 @@ function handleUI(request, apiKey) {
         if (confirm('确定要清空所有历史记录吗？')) {
             localStorage.removeItem(HISTORY_KEY);
             renderHistory();
+            showToast('历史记录已清空', 'success');
         }
     }
 
@@ -1472,6 +1651,7 @@ function handleUI(request, apiKey) {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        showToast('图片下载已开始', 'success');
     }
 
     function copyImageUrl() {
@@ -1479,30 +1659,33 @@ function handleUI(request, apiKey) {
         if (!img.src) return;
 
         navigator.clipboard.writeText(img.src).then(() => {
-            const btn = event.target.closest('.action-btn');
-            const original = btn.innerHTML;
-            btn.innerHTML = '✅ 已复制';
-            setTimeout(() => btn.innerHTML = original, 2000);
+            showToast('链接已复制到剪贴板', 'success');
         });
     }
 
     // --- 基础功能 ---
     function randomSeed() {
-        document.getElementById('seed').value = Math.floor(Math.random() * 1000000);
+        const seedInput = document.getElementById('seed');
+        seedInput.value = Math.floor(Math.random() * 1000000);
+        // 添加动画效果
+        seedInput.style.transform = 'scale(1.05)';
+        setTimeout(() => seedInput.style.transform = 'scale(1)', 150);
     }
 
     function copyEndpoint() {
         const text = '${origin}/v1/images/generations';
         navigator.clipboard.writeText(text).then(() => {
-            const btn = event.target.closest('.icon-button');
-            btn.innerHTML = '✅ 已复制';
-            setTimeout(() => btn.innerHTML = '📋 复制', 2000);
+            showToast('API 端点已复制', 'success');
         });
     }
 
     async function startGeneration() {
         const prompt = document.getElementById('prompt').value.trim();
-        if(!prompt) return alert('请输入提示词');
+        if(!prompt) {
+            showToast('请输入提示词', 'error');
+            document.getElementById('prompt').focus();
+            return;
+        }
 
         const negativePrompt = document.getElementById('negativePrompt')?.value.trim() || '';
         const seed = document.getElementById('seed').value;
@@ -1516,19 +1699,22 @@ function handleUI(request, apiKey) {
         const img = document.getElementById('resultImg');
         const ph = document.getElementById('placeholder');
         const actions = document.getElementById('imageActions');
+        const skeleton = document.getElementById('skeletonPreview');
+        const mainContent = document.getElementById('mainContent');
 
-        // Reset UI
+        // Reset UI with animations
         btn.disabled = true;
-        btnContent.innerHTML = '<div class="loading-spinner"></div><span>生成中...</span>';
+        btnContent.innerHTML = '<div class="loading-spinner"></div>生成中';
         progressSection.classList.add('visible');
         pBar.style.width = '5%';
         sText.innerText = '正在初始化...';
         sText.style.color = 'var(--text-secondary)';
         img.style.display = 'none';
-        actions.style.display = 'none';
-        ph.style.display = 'flex';
-        ph.querySelector('.placeholder-text').innerText = '正在请求 GPU 资源...';
-        ph.querySelector('.placeholder-hint').innerText = '请稍候，这可能需要几秒钟';
+        img.classList.remove('revealing');
+        actions.classList.remove('visible');
+        skeleton.style.display = 'block';
+        ph.style.display = 'none';
+        mainContent.classList.add('generating');
 
         try {
             // 1. 提交任务
@@ -1579,12 +1765,23 @@ function handleUI(request, apiKey) {
                         pBar.style.width = '100%';
                         sText.innerText = '✅ 生成完成！点击图片查看大图';
                         sText.style.color = 'var(--success)';
-                        ph.style.display = 'none';
+
+                        // 隐藏骨架屏，显示图片
+                        skeleton.style.display = 'none';
                         img.src = qData.url;
+                        img.classList.add('revealing');
                         img.style.display = 'block';
-                        actions.style.display = 'flex';
+
+                        // 延迟显示操作按钮
+                        setTimeout(() => actions.classList.add('visible'), 400);
+
+                        mainContent.classList.remove('generating');
                         saveToHistory(qData.url, prompt);
                         resetButton();
+                        showToast('图片生成成功！', 'success');
+
+                        // 移除动画类
+                        setTimeout(() => img.classList.remove('revealing'), 700);
                     } else if(qData.status === 'failed') {
                         throw new Error(qData.error || 'Unknown Error');
                     }
@@ -1592,16 +1789,24 @@ function handleUI(request, apiKey) {
                     clearInterval(pollInterval);
                     sText.innerText = '❌ ' + e.message;
                     sText.style.color = 'var(--error)';
+                    skeleton.style.display = 'none';
+                    ph.style.display = 'flex';
+                    ph.querySelector('.placeholder-text').innerText = e.message;
+                    mainContent.classList.remove('generating');
                     resetButton();
+                    showToast('生成失败: ' + e.message, 'error');
                 }
             }, 1500);
 
         } catch(e) {
             sText.innerText = '❌ 请求失败: ' + e.message;
             sText.style.color = 'var(--error)';
-            ph.querySelector('.placeholder-text').innerText = '生成失败';
-            ph.querySelector('.placeholder-hint').innerText = e.message;
+            skeleton.style.display = 'none';
+            ph.style.display = 'flex';
+            ph.querySelector('.placeholder-text').innerText = e.message;
+            mainContent.classList.remove('generating');
             resetButton();
+            showToast('请求失败: ' + e.message, 'error');
         }
     }
 
@@ -1609,7 +1814,7 @@ function handleUI(request, apiKey) {
         const btn = document.getElementById('genBtn');
         const btnContent = document.getElementById('btnContent');
         btn.disabled = false;
-        btnContent.innerHTML = '<span>🚀</span><span>生成图像</span>';
+        btnContent.innerHTML = '生成';
     }
 
     // --- 键盘快捷键 ---
