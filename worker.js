@@ -507,8 +507,7 @@ function handleHealthCheck() {
     return new Response(JSON.stringify({
         status: 'healthy',
         version: CONFIG.PROJECT_VERSION,
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime ? process.uptime() : 'N/A'
+        timestamp: new Date().toISOString()
     }), { headers: corsHeaders({'Content-Type': 'application/json'}) });
 }
 
