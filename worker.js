@@ -1,21 +1,24 @@
 /**
  * =================================================================================
  * 项目: zimage-2api (Cloudflare Worker 单文件·全功能修复版)
- * 版本: 2.1.1 (代号: Turbo Cockpit - Context Fix)
+ * 版本: 2.2.0 (代号: Turbo Cockpit - Optimized)
  * 作者: 首席AI执行官 (Principal AI Executive Officer)
  * 协议: 奇美拉协议 · 综合版 (Project Chimera: Synthesis Edition)
- * 日期: 2025-12-07
- * * [v2.1.1 修复日志]
- * 1. [关键修复] 解决了 handleChatCompletions 中 'ctx' 未定义的错误。
- * 2. [类型增强] 添加了 JSDoc 类型注解，消除 TypeScript 检查报错。
- * 3. [稳定性] 保持了 btoa/atob 的 Web 标准实现，确保无环境依赖问题。
+ * 日期: 2025-12-15
+ *
+ * [v2.2.0 优化日志]
+ * 1. [代码重构] 提取通用轮询函数 pollForResult，消除重复代码
+ * 2. [性能优化] generateHex 使用 crypto.getRandomValues 替代循环
+ * 3. [配置增强] 轮询间隔提取为配置常量，便于调整
+ * 4. [输入验证] 添加 prompt 和 messages 参数验证
+ * 5. [错误处理] 统一错误响应格式和消息
  * =================================================================================
  */
 
 // --- [第一部分: 核心配置 (Configuration-as-Code)] ---
 const CONFIG = {
   PROJECT_NAME: "zimage-2api",
-  PROJECT_VERSION: "2.1.1",
+  PROJECT_VERSION: "2.2.0",
   
   // 安全配置 (API Key) - 建议在部署后修改
   API_MASTER_KEY: "1", 
@@ -36,6 +39,8 @@ const CONFIG = {
   // 轮询配置 (服务端模式)
   POLLING_INTERVAL: 1500,
   POLLING_TIMEOUT: 60000,
+  STREAM_POLLING_INTERVAL: 1500,  // 流式模式轮询间隔
+  NON_STREAM_POLLING_INTERVAL: 2000,  // 非流式模式轮询间隔
   
   // 伪装指纹池
   USER_AGENTS: [
@@ -76,11 +81,11 @@ export default {
 // --- [第三部分: 核心业务逻辑] ---
 
 class IdentityForge {
+  // 使用 crypto API 生成更高效的随机十六进制字符串
   static generateHex(length) {
-    const chars = '0123456789abcdef';
-    let result = '';
-    for (let i = 0; i < length; i++) result += chars[Math.floor(Math.random() * chars.length)];
-    return result;
+    const bytes = new Uint8Array(Math.ceil(length / 2));
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').slice(0, length);
   }
 
   static getHeaders() {
@@ -151,10 +156,10 @@ async function queryTask(taskId, headers) {
     const res = await fetch(CONFIG.UPSTREAM_URL, {
         method: "POST", headers: headers, body: JSON.stringify(payload)
     });
-    
+
     if (!res.ok) return { status: 'retry' };
     const data = await res.json();
-    
+
     if (data.success && data.data?.tasks?.length > 0) {
         const task = data.data.tasks[0];
         // status: 0=queue, 1=running, 2=success, -1=fail
@@ -162,20 +167,61 @@ async function queryTask(taskId, headers) {
             return { status: 'success', url: task.res_data.image_url.replace(/\\\//g, '/') };
         }
         if (task.status === -1) return { status: 'failed', error: 'Generation failed' };
-        return { status: 'processing', progress: task.status === 1 ? 50 : 10 }; 
+        return { status: 'processing', progress: task.status === 1 ? 50 : 10 };
     }
     return { status: 'retry' };
+}
+
+/**
+ * 通用轮询函数 - 等待任务完成
+ * @param {string} taskId - 任务ID
+ * @param {Object} headers - 请求头
+ * @param {Object} options - 轮询选项
+ * @param {number} options.timeout - 超时时间(ms)
+ * @param {number} options.interval - 轮询间隔(ms)
+ * @param {Function} options.onProgress - 进度回调
+ * @returns {Promise<{url: string}>}
+ */
+async function pollForResult(taskId, headers, options = {}) {
+    const timeout = options.timeout || CONFIG.POLLING_TIMEOUT;
+    const interval = options.interval || CONFIG.POLLING_INTERVAL;
+    const onProgress = options.onProgress || (() => {});
+
+    const startTime = Date.now();
+    let iteration = 0;
+
+    while (Date.now() - startTime < timeout) {
+        await new Promise(r => setTimeout(r, interval));
+        const result = await queryTask(taskId, headers);
+        iteration++;
+
+        if (result.status === 'success') {
+            return { url: result.url };
+        }
+        if (result.status === 'failed') {
+            throw new Error(result.error || 'Generation failed');
+        }
+
+        // 调用进度回调
+        onProgress({ iteration, elapsed: Date.now() - startTime });
+    }
+
+    throw new Error('Timeout: Image generation took too long');
 }
 
 // --- [API Handlers] ---
 
 async function handleImageGenerations(request, apiKey) {
     if (!verifyAuth(request, apiKey)) return createErrorResponse('Unauthorized', 401, 'unauthorized');
-    
+
     try {
         const body = await request.json();
         const prompt = body.prompt;
-        
+
+        if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+            return createErrorResponse('Missing or invalid prompt', 400, 'invalid_request');
+        }
+
         // 提取自定义参数
         const size = body.size || CONFIG.DEFAULT_SIZE;
         const steps = body.steps || body.n_steps || CONFIG.DEFAULT_STEPS;
@@ -188,28 +234,19 @@ async function handleImageGenerations(request, apiKey) {
         // [Mode A] 客户端轮询 (WebUI)
         if (clientPoll) {
             const authContext = btoa(JSON.stringify(headers));
-            return new Response(JSON.stringify({ 
-                status: "submitted", 
+            return new Response(JSON.stringify({
+                status: "submitted",
                 task_id: taskId,
                 auth_context: authContext
             }), { headers: corsHeaders({'Content-Type': 'application/json'}) });
         }
 
         // [Mode B] 服务端轮询 (Standard API Client)
-        const startTime = Date.now();
-        while (Date.now() - startTime < CONFIG.POLLING_TIMEOUT) {
-            await new Promise(r => setTimeout(r, CONFIG.POLLING_INTERVAL));
-            const result = await queryTask(taskId, headers);
-            
-            if (result.status === 'success') {
-                return new Response(JSON.stringify({
-                    created: Math.floor(Date.now() / 1000),
-                    data: [{ url: result.url }]
-                }), { headers: corsHeaders({'Content-Type': 'application/json'}) });
-            }
-            if (result.status === 'failed') throw new Error(result.error);
-        }
-        throw new Error("Timeout");
+        const result = await pollForResult(taskId, headers);
+        return new Response(JSON.stringify({
+            created: Math.floor(Date.now() / 1000),
+            data: [{ url: result.url }]
+        }), { headers: corsHeaders({'Content-Type': 'application/json'}) });
 
     } catch (e) {
         return createErrorResponse(e.message, 500, 'internal_error');
@@ -237,41 +274,36 @@ async function handleStatusQuery(request, apiKey) {
 /**
  * 完美适配 Cherry Studio / NextChat 的聊天接口
  * 通过流式响应返回 Markdown 图片
- * * @param {Request} request
+ * @param {Request} request
  * @param {string} apiKey
- * @param {ExecutionContext} ctx  <-- [修复点] 接收 ctx 参数
+ * @param {ExecutionContext} ctx
  */
 async function handleChatCompletions(request, apiKey, ctx) {
     if (!verifyAuth(request, apiKey)) return createErrorResponse('Unauthorized', 401, 'unauthorized');
-    
+
     const requestId = `chatcmpl-${Date.now()}`;
     const created = Math.floor(Date.now() / 1000);
-    
+
     try {
         const body = await request.json();
         const lastMsg = body.messages?.[body.messages.length - 1];
-        if (!lastMsg) throw new Error("No messages provided");
-        
+        if (!lastMsg?.content) {
+            return createErrorResponse('No valid message content provided', 400, 'invalid_request');
+        }
+
         const prompt = lastMsg.content;
         const model = body.model || CONFIG.DEFAULT_MODEL;
         const stream = body.stream !== false; // 默认为流式
 
         // 提交生成任务
-        const { taskId, headers } = await submitTask(prompt, { size: "1024x1024" }); // Chat 模式默认 1024
+        const { taskId, headers } = await submitTask(prompt, { size: CONFIG.DEFAULT_SIZE });
 
         // 如果客户端不支持流式，退回等待模式
         if (!stream) {
-            let imgUrl = "";
-            const startTime = Date.now();
-            while (Date.now() - startTime < 60000) {
-                await new Promise(r => setTimeout(r, 2000));
-                const res = await queryTask(taskId, headers);
-                if (res.status === 'success') { imgUrl = res.url; break; }
-                if (res.status === 'failed') throw new Error("Generation Failed");
-            }
-            if (!imgUrl) throw new Error("Timeout");
-
-            const content = `![Generated Image](${imgUrl})\n\n**Prompt:** ${prompt}`;
+            const result = await pollForResult(taskId, headers, {
+                interval: CONFIG.NON_STREAM_POLLING_INTERVAL
+            });
+            const content = `![Generated Image](${result.url})\n\n**Prompt:** ${prompt}`;
             return new Response(JSON.stringify({
                 id: requestId,
                 object: "chat.completion",
@@ -298,37 +330,23 @@ async function handleChatCompletions(request, apiKey, ctx) {
         };
 
         // 在后台处理轮询，不阻塞主线程
-        // [修复点] 这里需要 ctx.waitUntil，所以函数签名必须包含 ctx
         ctx.waitUntil((async () => {
             try {
                 // 1. 发送初始状态
                 await sendChunk("🎨 正在请求 Z-Image 引擎生成图片...\n\n> " + prompt + "\n\n");
-                
-                let imgUrl = "";
-                const startTime = Date.now();
-                let steps = 0;
 
-                // 2. 轮询循环
-                while (Date.now() - startTime < 60000) {
-                    await new Promise(r => setTimeout(r, 1500));
-                    const res = await queryTask(taskId, headers);
-                    
-                    if (res.status === 'success') { 
-                        imgUrl = res.url; 
-                        break; 
+                // 2. 使用通用轮询函数，带进度回调
+                const result = await pollForResult(taskId, headers, {
+                    interval: CONFIG.STREAM_POLLING_INTERVAL,
+                    onProgress: async ({ iteration }) => {
+                        // 每2次轮询发送一个进度点，保持连接活跃
+                        if (iteration % 2 === 0) await sendChunk("·");
                     }
-                    if (res.status === 'failed') throw new Error("Generation Failed");
-                    
-                    // 发送进度点，保持连接活跃
-                    if (steps % 2 === 0) await sendChunk("·");
-                    steps++;
-                }
-
-                if (!imgUrl) throw new Error("Timeout");
+                });
 
                 // 3. 发送最终图片 Markdown
-                await sendChunk(`\n\n![Generated Image](${imgUrl})`);
-                
+                await sendChunk(`\n\n![Generated Image](${result.url})`);
+
                 // 4. 发送结束信号
                 await sendChunk("", "stop");
                 await writer.write(encoder.encode("data: [DONE]\n\n"));
@@ -1063,7 +1081,7 @@ function handleUI(request, apiKey) {
             <div class="logo-icon">Z</div>
             <h1 class="logo-title">Z-Image Turbo</h1>
         </div>
-        <span class="badge">v2.1.1</span>
+        <span class="badge">v2.2.0</span>
     </div>
 </header>
 
